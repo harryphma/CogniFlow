@@ -1,19 +1,21 @@
 from fastapi import APIRouter, UploadFile, HTTPException, Form, Request, Depends, Body
 from typing import Optional, List, Dict, Any
+from app.utils.auth_utils import get_current_user
 import os
 import tempfile
 import json
-from app.utils import generate_cards, parsePDF_to_text, topic_selection, edit_flashcards
+from app.utils.gemini_utils import generate_cards, parsePDF_to_text, topic_selection, edit_flashcards
 from typing import List, Dict, Any, Optional
 
 router = APIRouter(
     prefix="/gemini",
     tags=["gemini"],
+    dependencies=[Depends(get_current_user)]
 )
 
 
 @router.post("/auto")
-async def auto_generate(request: Request, file: UploadFile):
+async def auto_generate(request: Request, file: UploadFile, current_user = Depends(get_current_user)):
     # Check if the file is a PDF
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
@@ -31,14 +33,22 @@ async def auto_generate(request: Request, file: UploadFile):
         
         # Generate flashcards
         cards = generate_cards(text)
+        if not cards:
+            raise HTTPException(status_code=500, detail="Failed to generate flashcards")
 
         # Save flashcards to session
         save_flashcards_to_session(request, "auto", cards)
         
         # Clean up the temporary file
         os.unlink(temp_file_path)
+
+        user_id = current_user.user.id if hasattr(current_user, 'user') else current_user.id
         
-        return cards
+        response_data = {
+            "cards": cards,
+            "user_id": user_id
+        }
+        return response_data
         
     except Exception as e:
         # Clean up the temporary file in case of error
@@ -46,31 +56,36 @@ async def auto_generate(request: Request, file: UploadFile):
             os.unlink(temp_file_path)
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.post("/manual")
-async def manual_generate(request: Request, subject: str = Form(...)):
-    """
-    Generate flashcards based on a subject/topic.
-    
-    Args:
-        subject (str): The subject or topic to generate flashcards for (e.g., "Arithmetic")
-        
-    Returns:
-        dict: A dictionary containing the generated flashcards
-    """
+async def manual_generate(request: Request, subject: str = Form(...), current_user = Depends(get_current_user)):
     try:
+        #print(f"Received subject: {subject}")
+        #print(f"Current user: {current_user}")  # Debug current_user object
+        
         # Generate flashcards based on the subject
         cards = topic_selection(subject)
+        #print(f"Generated cards: {cards}")  # Debug cards
         
         if not cards:
             raise HTTPException(status_code=500, detail="Failed to generate flashcards")
         
         # Save flashcards to session
         save_flashcards_to_session(request, "manual", cards)
+        
+        user_id = current_user.user.id if hasattr(current_user, 'user') else current_user.id
+        #print(f"User ID: {user_id}")  # Debug user_id
             
-        return cards
+        response_data = {
+            "cards": cards,
+            "user_id": user_id
+        }
+        #print(f"Response data: {response_data}")  # Debug response
+        return response_data
         
     except Exception as e:
+        print(f"Error in manual_generate: {str(e)}")  # Debug any errors
+        import traceback
+        print(traceback.format_exc())  # Print full error traceback
         raise HTTPException(status_code=500, detail=str(e))
 
 

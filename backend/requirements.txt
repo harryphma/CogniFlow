@@ -11,3 +11,6 @@ itsdangerous
 python-multipart
 openai
 google-cloud-speech
+supabase
+python-jose[cryptography]
+python-multipart

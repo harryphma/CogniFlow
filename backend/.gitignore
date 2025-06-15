@@ -6,3 +6,8 @@ venv/
 tts_credentials.json
 /app/debug_audio/*
 /app/debug_audio
+**/__pycache__/
+**/app/__pycache__/
+*.py[cod]
+# Python cache files and directories
+__pycache__/

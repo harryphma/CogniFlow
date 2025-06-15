@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Form, Depends
 from fastapi.responses import StreamingResponse
 from typing import Optional, List, Dict
 import os
@@ -7,8 +7,10 @@ import traceback
 import sys
 import json
 from pydantic import BaseModel
+from app.utils.auth_utils import get_current_user
+
 # Import utility functions
-from app.routers.utils.tts_utils import generate_speech_from_text, transcribe_speech_from_audio, llm_learner_response, evaluate
+from app.utils.tts_utils import generate_speech_from_text, transcribe_speech_from_audio, llm_learner_response, evaluate
 
 # Set up logger
 logger = logging.getLogger("tts_router")
@@ -21,7 +23,8 @@ logger.addHandler(handler)
 
 router = APIRouter(
     prefix="/tts",
-    tags=["text-to-speech"]
+    tags=["text-to-speech"],
+    dependencies=[Depends(get_current_user)]
 )
 
 class TTSRequest(BaseModel):
